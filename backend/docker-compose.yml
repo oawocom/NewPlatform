@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16
+    container_name: platform_postgres
+    environment:
+      POSTGRES_USER: platform_user
+      POSTGRES_PASSWORD: YourStrongPassword123!
+      POSTGRES_DB: platform_system
+    volumes:
+      - ./databases:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: platform_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: platform_backend
+    command: uvicorn core.app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+      - ./core:/app/core
+      - ./modules:/app/modules
+      - ./tenants:/app/tenants
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: platform_nginx
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./cdn:/usr/share/nginx/html/cdn
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    restart: unless-stopped
