@@ -12,15 +12,15 @@ export default function AdminLayout({ children }) {
     const userData = localStorage.getItem('user');
     
     if (!token) {
-      router.push('/account/login');
+      router.push('/');
       return;
     }
     
     const user = JSON.parse(userData);
     
     // Check if user is admin
-    if (user.role !== 'tenant_admin' && user.role !== 'system_admin') {
-      router.push('/dashboard');
+    if (user.role !== 'TENANT_ADMIN' && user.role !== 'SUPER_ADMIN') {
+      router.push('/admin/dashboard');
       return;
     }
     
@@ -30,7 +30,7 @@ export default function AdminLayout({ children }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/account/login');
+    router.push('/');
   };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;

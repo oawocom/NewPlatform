@@ -11,7 +11,7 @@ from app.core.database import get_system_db
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.dependencies import get_current_user
 from app.schemas.auth import UserRegister, UserLogin
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.tenant import Tenant, TenantStatus
 from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
 
@@ -68,7 +68,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_system_db)
             email=user_data.email,
             hashed_password=hashed_password,
             full_name=user_data.full_name,
-            role=UserRole.TENANT_ADMIN,
+            role_id=2,  # TENANT_ADMIN
             tenant_id=tenant.id
         )
         db.add(user)
@@ -84,7 +84,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_system_db)
                 "user_id": user.id,
                 "email": user.email,
                 "tenant_id": tenant.id,
-                "role": user.role.value
+                "role": user.role.name if user.role else None
             }
         )
         
@@ -98,7 +98,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_system_db)
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role.value
+                "role": user.role.name if user.role else None
             },
             "tenant": {
                 "id": tenant.id,
@@ -145,7 +145,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_system_db)):
             "user_id": user.id,
             "email": user.email,
             "tenant_id": user.tenant_id,
-            "role": user.role.value
+            "role": user.role.name if user.role else None
         }
     )
     
@@ -157,7 +157,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_system_db)):
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "role": user.role.value
+            "role": user.role.name if user.role else None
         },
         "tenant": {
             "id": tenant.id if tenant else None,
@@ -178,7 +178,7 @@ async def get_me(current_user: User = Depends(get_current_user), db: Session = D
             "id": current_user.id,
             "email": current_user.email,
             "full_name": current_user.full_name,
-            "role": current_user.role.value,
+            "role": current_user.role.name if user.role else None,
             "is_active": current_user.is_active
         },
         "tenant": {
