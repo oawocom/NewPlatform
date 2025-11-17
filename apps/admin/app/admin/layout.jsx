@@ -75,6 +75,14 @@ export default function AdminLayout({ children }) {
               <span>👥</span>
               <span>Users</span>
             </a>
+            <a href="/admin/roles" className="flex items-center space-x-3 px-4 py-3 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">
+              <span>🔐</span>
+              <span>Roles</span>
+            </a>
+            <a href="/admin/permissions" className="flex items-center space-x-3 px-4 py-3 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">
+              <span>🛡️</span>
+              <span>Permissions</span>
+            </a>
             <a href="/admin/settings" className="flex items-center space-x-3 px-4 py-3 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">
               <span>⚙️</span>
               <span>Settings</span>

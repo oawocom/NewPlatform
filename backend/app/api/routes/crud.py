@@ -1,5 +1,5 @@
 """
-Universal CRUD routes - works for ANY table
+Universal CRUD routes - works for ANY table with SUPER_ADMIN support
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import inspect, text
@@ -19,6 +19,10 @@ def table_exists(table_name: str) -> bool:
     inspector = inspect(system_engine)
     return table_name in inspector.get_table_names()
 
+def is_super_admin(user: User) -> bool:
+    """Check if user is SUPER_ADMIN"""
+    return user.role and user.role.name == 'SUPER_ADMIN'
+
 @router.get("/{table_name}")
 async def list_items(
     table_name: str,
@@ -30,14 +34,14 @@ async def list_items(
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        # Get tenant_id from current user
-        tenant_id = current_user.tenant_id
+        if is_super_admin(current_user):
+            query = text(f"SELECT * FROM {table_name}")
+            result = db.execute(query)
+        else:
+            tenant_id = current_user.tenant_id
+            query = text(f"SELECT * FROM {table_name} WHERE tenant_id = :tenant_id")
+            result = db.execute(query, {"tenant_id": tenant_id})
         
-        # Simple SQL query
-        query = text(f"SELECT * FROM {table_name} WHERE tenant_id = :tenant_id")
-        result = db.execute(query, {"tenant_id": tenant_id})
-        
-        # Convert to dict
         columns = result.keys()
         items = [dict(zip(columns, row)) for row in result.fetchall()]
         
@@ -52,14 +56,18 @@ async def get_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get single item by ID"""
+    """Get single item by ID - SUPER_ADMIN can access any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        tenant_id = current_user.tenant_id
-        query = text(f"SELECT * FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id")
-        result = db.execute(query, {"id": item_id, "tenant_id": tenant_id})
+        if is_super_admin(current_user):
+            query = text(f"SELECT * FROM {table_name} WHERE id = :id")
+            result = db.execute(query, {"id": item_id})
+        else:
+            tenant_id = current_user.tenant_id
+            query = text(f"SELECT * FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id")
+            result = db.execute(query, {"id": item_id, "tenant_id": tenant_id})
         
         row = result.fetchone()
         if not row:
@@ -84,13 +92,11 @@ async def create_item(
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        # Add tenant_id automatically
-        data['tenant_id'] = current_user.tenant_id
+        if 'tenant_id' not in data or not is_super_admin(current_user):
+            data['tenant_id'] = current_user.tenant_id
         
-        # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
         
-        # Build INSERT query
         columns = ', '.join(data.keys())
         placeholders = ', '.join([f':{k}' for k in data.keys()])
         query = text(f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING *")
@@ -113,33 +119,35 @@ async def update_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Update existing item"""
+    """Update existing item - SUPER_ADMIN can update any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        tenant_id = current_user.tenant_id
+        if is_super_admin(current_user):
+            check_query = text(f"SELECT * FROM {table_name} WHERE id = :id")
+            check_result = db.execute(check_query, {"id": item_id})
+        else:
+            tenant_id = current_user.tenant_id
+            check_query = text(f"SELECT * FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id")
+            check_result = db.execute(check_query, {"id": item_id, "tenant_id": tenant_id})
         
-        # Remove None values and tenant_id (shouldn't be updated)
-        data = {k: v for k, v in data.items() if v is not None and k not in ['id', 'tenant_id', 'created_at']}
+        if not check_result.fetchone():
+            raise HTTPException(status_code=404, detail="Item not found or access denied")
+        
+        data = {k: v for k, v in data.items() if v is not None and k != 'id'}
         
         if not data:
-            raise HTTPException(status_code=400, detail="No data to update")
+            raise HTTPException(status_code=400, detail="No valid fields to update")
         
-        # Build UPDATE query
         set_clause = ', '.join([f"{k} = :{k}" for k in data.keys()])
-        query = text(f"UPDATE {table_name} SET {set_clause} WHERE id = :id AND tenant_id = :tenant_id RETURNING *")
-        
         data['id'] = item_id
-        data['tenant_id'] = tenant_id
         
+        query = text(f"UPDATE {table_name} SET {set_clause} WHERE id = :id RETURNING *")
         result = db.execute(query, data)
         db.commit()
         
         row = result.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Item not found")
-        
         columns = result.keys()
         return dict(zip(columns, row))
     except HTTPException:
@@ -155,18 +163,23 @@ async def delete_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete item"""
+    """Delete item - SUPER_ADMIN can delete any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        tenant_id = current_user.tenant_id
-        query = text(f"DELETE FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id")
-        result = db.execute(query, {"id": item_id, "tenant_id": tenant_id})
+        if is_super_admin(current_user):
+            query = text(f"DELETE FROM {table_name} WHERE id = :id RETURNING *")
+            result = db.execute(query, {"id": item_id})
+        else:
+            tenant_id = current_user.tenant_id
+            query = text(f"DELETE FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id RETURNING *")
+            result = db.execute(query, {"id": item_id, "tenant_id": tenant_id})
+        
         db.commit()
         
         if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Item not found")
+            raise HTTPException(status_code=404, detail="Item not found or access denied")
         
         return {"message": "Item deleted successfully"}
     except HTTPException:

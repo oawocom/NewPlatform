@@ -1,22 +1,28 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { BRANDING } from '../config/branding';
+import { BRANDING } from '../../config/branding';
 
-export default function RegisterPage() {
+export default function ReferralRegisterPage() {
   const router = useRouter();
+  const params = useParams();
+  const partnerCode = params.code?.toUpperCase() || '';
+  
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState('reseller');
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
-    company_name: '',
-    partner_code: '',
     password: '',
     confirm_password: ''
   });
   const [errors, setErrors] = useState({});
+
+  // Validate partner code format only
+  if (!partnerCode.startsWith('PA')) {
+    router.push('/register');
+    return null;
+  }
 
   const validateForm = () => {
     const newErrors = {};
@@ -29,10 +35,6 @@ export default function RegisterPage() {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
-    }
-    
-    if (userType === 'reseller' && !formData.company_name.trim()) {
-      newErrors.company_name = 'Company name is required for resellers';
     }
     
     if (!formData.password) {
@@ -63,14 +65,9 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         full_name: formData.full_name,
-        user_type: userType
+        user_type: 'user',
+        partner_code: partnerCode
       });
-      
-      if (userType === 'reseller') {
-        params.append('company_name', formData.company_name);
-      } else if (formData.partner_code.trim()) {
-        params.append('partner_code', formData.partner_code.trim());
-      }
       
       const res = await fetch(`/api/v1/auth/register?${params}`, {
         method: 'POST',
@@ -82,18 +79,12 @@ export default function RegisterPage() {
       const data = await res.json();
       
       if (res.ok) {
-        if (data.partner_code) {
-          const referralLink = `${window.location.origin}/register/${data.partner_code}`;
-          alert(`Account created successfully!\n\nYour Partner Code: ${data.partner_code}\n\nYour Referral Link:\n${referralLink}\n\nShare this link with users to join your company.`);
-        } else {
-          alert('Account created successfully!');
-        }
-        
+        alert('Account created successfully! Welcome aboard!');
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/admin/dashboard');
       } else {
-        alert(data.detail || 'Registration failed. Please try again.');
+        alert(data.detail || 'Registration failed. Please check the partner code and try again.');
       }
     } catch (err) {
       console.error('Registration error:', err);
@@ -109,47 +100,20 @@ export default function RegisterPage() {
         {/* Logo & Header */}
         <div className="text-center mb-8">
           <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mx-auto mb-4" />
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600 text-lg">Start your free 14-day trial. No credit card required.</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Join via Invitation</h1>
+          <p className="text-gray-600 text-lg">You've been invited to join a team</p>
+          <div className="mt-3 inline-flex items-center px-4 py-2 bg-blue-100 rounded-lg">
+            <svg className="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+            </svg>
+            <span className="text-sm text-blue-800 font-mono">{partnerCode}</span>
+          </div>
         </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User Type Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">I am a:</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setUserType('reseller')}
-                  className={`p-4 border-2 rounded-xl transition ${
-                    userType === 'reseller'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">🏢</div>
-                  <div className="font-semibold">Reseller / Company</div>
-                  <div className="text-xs text-gray-500 mt-1">Get partner code</div>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setUserType('user')}
-                  className={`p-4 border-2 rounded-xl transition ${
-                    userType === 'user'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">👤</div>
-                  <div className="font-semibold">User</div>
-                  <div className="text-xs text-gray-500 mt-1">Join or create workspace</div>
-                </button>
-              </div>
-            </div>
-
             {/* Name & Email */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -180,37 +144,6 @@ export default function RegisterPage() {
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
               </div>
             </div>
-
-            {/* Conditional Fields */}
-            {userType === 'reseller' ? (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name</label>
-                <input
-                  type="text"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 transition ${
-                    errors.company_name ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                  }`}
-                  placeholder="ACME Corporation"
-                />
-                {errors.company_name && <p className="text-red-500 text-sm mt-1">{errors.company_name}</p>}
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Partner Code <span className="text-gray-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.partner_code}
-                  onChange={(e) => setFormData({ ...formData, partner_code: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 transition"
-                  placeholder="PA120084"
-                />
-                <p className="text-xs text-gray-500 mt-1">Leave empty to create your own workspace</p>
-              </div>
-            )}
 
             {/* Passwords */}
             <div className="grid md:grid-cols-2 gap-6">
@@ -249,7 +182,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? 'Creating Account...' : 'Join Team'}
             </button>
 
             {/* Sign In Link */}
