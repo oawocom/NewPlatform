@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { BRANDING } from './config/branding';
 import { MODULES } from './config/modules';
-import axios from 'axios';
 
 const API_URL = '/api/v1';
 
@@ -45,12 +44,28 @@ export default function HomePage() {
 
     setLoginLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, loginData);
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Login failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       window.location.href = '/admin/dashboard';
     } catch (error) {
-      setLoginErrors({ submit: error.response?.data?.detail || 'Login failed' });
+      setLoginErrors({ submit: error.message || 'Login failed' });
     }
     setLoginLoading(false);
   };

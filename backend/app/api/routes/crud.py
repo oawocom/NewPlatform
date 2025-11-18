@@ -1,10 +1,8 @@
-"""
-Universal CRUD routes - works for ANY table with SUPER_ADMIN support
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
+from datetime import datetime, timezone
 import sys
 sys.path.insert(0, '/app')
 
@@ -15,13 +13,11 @@ from app.models.user import User
 router = APIRouter(prefix="/crud", tags=["CRUD"])
 
 def table_exists(table_name: str) -> bool:
-    """Check if table exists"""
     inspector = inspect(system_engine)
     return table_name in inspector.get_table_names()
 
 def is_super_admin(user: User) -> bool:
-    """Check if user is SUPER_ADMIN"""
-    return user.role and user.role.name == 'SUPER_ADMIN'
+    return user.role == 'SUPER_ADMIN'
 
 @router.get("/{table_name}")
 async def list_items(
@@ -29,7 +25,6 @@ async def list_items(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List all items from table"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
@@ -44,7 +39,6 @@ async def list_items(
         
         columns = result.keys()
         items = [dict(zip(columns, row)) for row in result.fetchall()]
-        
         return items
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,7 +50,6 @@ async def get_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get single item by ID - SUPER_ADMIN can access any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
@@ -87,20 +80,21 @@ async def create_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create new item"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
     try:
-        if 'tenant_id' not in data or not is_super_admin(current_user):
+        if not is_super_admin(current_user) and 'tenant_id' not in data:
             data['tenant_id'] = current_user.tenant_id
         
-        data = {k: v for k, v in data.items() if v is not None}
+        if table_name == 'projects':
+            data['created_by_id'] = current_user.id
+            if 'status' not in data:
+                data['status'] = 'INACTIVE'
         
         columns = ', '.join(data.keys())
-        placeholders = ', '.join([f':{k}' for k in data.keys()])
+        placeholders = ', '.join([f":{key}" for key in data.keys()])
         query = text(f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING *")
-        
         result = db.execute(query, data)
         db.commit()
         
@@ -119,7 +113,6 @@ async def update_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Update existing item - SUPER_ADMIN can update any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
@@ -133,17 +126,11 @@ async def update_item(
             check_result = db.execute(check_query, {"id": item_id, "tenant_id": tenant_id})
         
         if not check_result.fetchone():
-            raise HTTPException(status_code=404, detail="Item not found or access denied")
+            raise HTTPException(status_code=404, detail="Item not found")
         
-        data = {k: v for k, v in data.items() if v is not None and k != 'id'}
-        
-        if not data:
-            raise HTTPException(status_code=400, detail="No valid fields to update")
-        
-        set_clause = ', '.join([f"{k} = :{k}" for k in data.keys()])
-        data['id'] = item_id
-        
+        set_clause = ', '.join([f"{key} = :{key}" for key in data.keys()])
         query = text(f"UPDATE {table_name} SET {set_clause} WHERE id = :id RETURNING *")
+        data['id'] = item_id
         result = db.execute(query, data)
         db.commit()
         
@@ -163,7 +150,6 @@ async def delete_item(
     db: Session = Depends(get_system_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete item - SUPER_ADMIN can delete any record"""
     if not table_exists(table_name):
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
@@ -176,14 +162,71 @@ async def delete_item(
             query = text(f"DELETE FROM {table_name} WHERE id = :id AND tenant_id = :tenant_id RETURNING *")
             result = db.execute(query, {"id": item_id, "tenant_id": tenant_id})
         
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
         db.commit()
-        
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Item not found or access denied")
-        
         return {"message": "Item deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/projects/{project_id}/publish")
+async def publish_project(
+    project_id: int,
+    db: Session = Depends(get_system_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        query = text("SELECT * FROM projects WHERE id = :id AND tenant_id = :tenant_id")
+        result = db.execute(query, {"id": project_id, "tenant_id": current_user.tenant_id})
+        project = result.fetchone()
+        
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        now = datetime.now(timezone.utc)
+        update_query = text("""
+            UPDATE projects 
+            SET status = 'ACTIVE', published_at = :published_at, published_by_id = :published_by_id
+            WHERE id = :id
+            RETURNING *
+        """)
+        result = db.execute(update_query, {
+            "id": project_id,
+            "published_at": now,
+            "published_by_id": current_user.id
+        })
+        db.commit()
+        
+        row = result.fetchone()
+        columns = result.keys()
+        return dict(zip(columns, row))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/tenants")
+async def list_tenants(
+    db: Session = Depends(get_system_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        if is_super_admin(current_user):
+            query = text("SELECT * FROM tenants")
+            result = db.execute(query)
+        else:
+            tenant_id = current_user.tenant_id
+            query = text("SELECT * FROM tenants WHERE id = :tenant_id")
+            result = db.execute(query, {"tenant_id": tenant_id})
+        
+        columns = result.keys()
+        items = [dict(zip(columns, row)) for row in result.fetchall()]
+        return items
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

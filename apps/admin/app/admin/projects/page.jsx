@@ -26,20 +26,33 @@ export default function AdminProjectsPage() {
   }, []);
 
   const handleDelete = async (projectId) => {
-    if (!confirm('Are you sure you want to delete this project?')) return;
-    
+    if (!confirm('Delete this project?')) return;
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/v1/crud/projects/${projectId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (res.ok) {
-        alert('Project deleted successfully');
+        alert('Project deleted');
         fetchProjects();
-      } else {
-        alert('Failed to delete project');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handlePublish = async (projectId) => {
+    if (!confirm('Publish this project?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/v1/crud/projects/${projectId}/publish`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert('✅ Published!');
+        fetchProjects();
       }
     } catch (err) {
       alert('Error: ' + err.message);
@@ -72,36 +85,65 @@ export default function AdminProjectsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subdomain</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {projects.map(project => (
-                <tr key={project.id}>
+                <tr key={project.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 font-medium">{project.name}</td>
                   <td className="px-6 py-4">
-                    {project.subdomain ? (
-                      <a href={`https://${project.subdomain}.buildown.design`} target="_blank" className="text-blue-600 hover:underline">
-                        {project.subdomain}
-                      </a>
-                    ) : (
-                      <span className="text-gray-400">Not set</span>
-                    )}
+                    <a href={`https://${project.subdomain}.buildown.design`} target="_blank" className="text-blue-600 hover:underline">
+                      {project.subdomain}
+                    </a>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded ${project.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {project.is_active ? 'Active' : 'Inactive'}
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      project.published_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {project.published_at ? 'Published' : 'Draft'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">{project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {project.created_by_name || '-'}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
+                  </td>
                   <td className="px-6 py-4">
-                    <a href={`/admin/projects/${project.id}/edit`} className="text-blue-600 hover:text-blue-700 mr-3">
-                      Edit
-                    </a>
-                    <button onClick={() => handleDelete(project.id)} className="text-red-600 hover:text-red-700">
-                      Delete
-                    </button>
+                    <div className="flex gap-3 justify-center items-center">
+                      {!project.published_at && (
+                        <button 
+                          onClick={() => handlePublish(project.id)} 
+                          className="text-green-600 hover:text-green-800"
+                          title="Publish"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                      )}
+                      <a 
+                        href={`/admin/projects/${project.id}/edit`} 
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Edit"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </a>
+                      <button 
+                        onClick={() => handleDelete(project.id)} 
+                        className="text-red-600 hover:text-red-800"
+                        title="Delete"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -4,6 +4,7 @@ Authentication routes - Register and Login with new permission system
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 import sys
 sys.path.insert(0, '/app')
@@ -16,6 +17,18 @@ from app.models.user import User
 from app.models.tenant import Tenant
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    user_type: str
+    company_name: str = None
+    partner_code: str = None
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(
@@ -107,14 +120,13 @@ async def register(
 
 @router.post("/login")
 async def login(
-    email: str,
-    password: str,
+    request: LoginRequest,
     db: Session = Depends(get_system_db)
 ):
     """
     Login endpoint - returns token and user with permissions
     """
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == request.email).first()
     
     if not user:
         raise HTTPException(
@@ -122,7 +134,7 @@ async def login(
             detail="Incorrect email or password"
         )
     
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(request.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"

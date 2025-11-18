@@ -1,37 +1,14 @@
-"""
-Tenant model - Company/Organization
-"""
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum, JSON
+from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
-import enum
+from app.models.base import BaseModel
 
-from app.models.base import Base
-from app.models.project import Project
-
-class TenantStatus(str, enum.Enum):
-    TRIAL = "trial"
-    ACTIVE = "active"
-    SUSPENDED = "suspended"
-    CANCELLED = "cancelled"
-
-class Tenant(Base):
+class Tenant(BaseModel):
     __tablename__ = "tenants"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    subdomain = Column(String, unique=True, nullable=True)
-    custom_domain = Column(String, unique=True, nullable=True)
-    status = Column(SQLEnum(TenantStatus), default=TenantStatus.TRIAL, nullable=False)
-    database_name = Column(String, nullable=True)
-    enabled_modules = Column(JSON, default=list)
-    settings = Column(JSON, default=dict)
     
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    is_active = Column(Boolean, default=True)
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), default='TRIAL')
     
-    # Relationships
     users = relationship("User", back_populates="tenant")
-    subscription = relationship("Subscription", back_populates="tenant", uselist=False)
+    projects = relationship("Project", back_populates="tenant")
     contents = relationship("Content", back_populates="tenant")
+    subscription = relationship("Subscription", back_populates="tenant", uselist=False)
