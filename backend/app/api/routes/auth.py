@@ -1,6 +1,6 @@
 from sqlalchemy import text
 """
-Authentication routes - Register and Login
+Authentication routes - Register and Login with new permission system
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -11,10 +11,9 @@ sys.path.insert(0, '/app')
 from app.core.database import get_system_db
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.dependencies import get_current_user
-from app.schemas.auth import UserRegister, UserLogin
+from app.core.permissions import get_user_permissions
 from app.models.user import User
-from app.models.tenant import Tenant, TenantStatus
-from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
+from app.models.tenant import Tenant
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -23,227 +22,166 @@ async def register(
     email: str,
     password: str,
     full_name: str,
-    user_type: str,  # "reseller" or "user"
+    user_type: str,
     company_name: str = None,
     partner_code: str = None,
     db: Session = Depends(get_system_db)
 ):
     """
-    Registration with reseller/user logic:
-    - Reseller: Creates company, becomes TENANT_ADMIN, gets partner code
-    - User with partner_code: Joins admin's tenant as TENANT_USER
-    - User without partner_code: Creates own workspace as TENANT_USER
+    Registration with reseller/user logic
     """
-    from app.core.security import get_password_hash
     from app.core.partner_codes import decode_partner_code, generate_partner_code
     
-    # Check if email exists
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     tenant_id = None
-    role_id = None
+    role = 'USER'
     
-    try:
-        if user_type == "reseller":
-            # Reseller: Create new tenant and become admin
-            if not company_name or not company_name.strip():
-                raise HTTPException(status_code=400, detail="Company name required for resellers")
+    if user_type == 'reseller':
+        if not company_name:
+            raise HTTPException(status_code=400, detail="Company name required for resellers")
+        
+        new_tenant = Tenant(name=company_name, status='TRIAL')
+        db.add(new_tenant)
+        db.flush()
+        tenant_id = new_tenant.id
+        role = 'TENANT_ADMIN'
+        
+    elif user_type == 'user':
+        if partner_code:
+            parent_user_id = decode_partner_code(partner_code)
+            if not parent_user_id:
+                raise HTTPException(status_code=400, detail="Invalid partner code")
             
-            # Create tenant
-            tenant = Tenant(
-                name=company_name.strip(),
-                subdomain=None,
-                database_name=None,
-                status=TenantStatus.TRIAL,
-                enabled_modules=[],
-                settings={"timezone": "UTC", "language": "en", "currency": "USD"}
-            )
-            db.add(tenant)
-            db.flush()
-            tenant_id = tenant.id
+            parent_user = db.query(User).filter(User.id == parent_user_id).first()
+            if not parent_user or not parent_user.tenant_id:
+                raise HTTPException(status_code=400, detail="Invalid partner code")
             
-            # Create subscription (14-day trial)
-            now_utc = datetime.now(timezone.utc)
-            trial_end = now_utc + timedelta(days=14)
-            subscription = Subscription(
-                tenant_id=tenant.id,
-                plan=SubscriptionPlan.FREE,
-                status=SubscriptionStatus.TRIALING,
-                trial_end=trial_end,
-                current_period_start=now_utc,
-                current_period_end=trial_end,
-                max_users=5,
-                max_storage_gb=10
-            )
-            db.add(subscription)
-            
-            role_id = 2  # TENANT_ADMIN
-            
-        elif user_type == "user":
-            if partner_code and partner_code.strip():
-                # User with partner code: Join existing admin's tenant
-                admin_id = decode_partner_code(partner_code.strip())
-                
-                if not admin_id:
-                    raise HTTPException(status_code=400, detail="Invalid partner code")
-                
-                admin = db.query(User).filter(User.id == admin_id, User.role_id == 2).first()
-                
-                if not admin:
-                    raise HTTPException(status_code=400, detail="Partner code not found")
-                
-                tenant_id = admin.tenant_id
-                role_id = 3  # TENANT_USER
-            else:
-                # User without partner code: Create own workspace
-                tenant = Tenant(
-                    name=f"{full_name.strip()}'s Workspace",
-                    subdomain=None,
-                    database_name=None,
-                    status=TenantStatus.TRIAL,
-                    enabled_modules=[],
-                    settings={"timezone": "UTC", "language": "en", "currency": "USD"}
-                )
-                db.add(tenant)
-                db.flush()
-                tenant_id = tenant.id
-                
-                # Create subscription
-                now_utc = datetime.now(timezone.utc)
-                trial_end = now_utc + timedelta(days=14)
-                subscription = Subscription(
-                    tenant_id=tenant.id,
-                    plan=SubscriptionPlan.FREE,
-                    status=SubscriptionStatus.TRIALING,
-                    trial_end=trial_end,
-                    current_period_start=now_utc,
-                    current_period_end=trial_end,
-                    max_users=5,
-                    max_storage_gb=10
-                )
-                db.add(subscription)
-                
-                role_id = 3  # TENANT_USER
+            tenant_id = parent_user.tenant_id
+            role = 'USER'
         else:
-            raise HTTPException(status_code=400, detail="Invalid user_type. Must be 'reseller' or 'user'")
-        
-        # Create user
-        hashed_password = get_password_hash(password)
-        user = User(
-            email=email,
-            hashed_password=hashed_password,
-            full_name=full_name.strip(),
-            role_id=role_id,
-            tenant_id=tenant_id
-        )
-        
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        # Get role name
-        role = db.execute(text(f"SELECT name FROM roles WHERE id = {role_id}")).fetchone()
-        role_name = role[0] if role else None
-        
-        # Generate partner code for resellers
-        user_partner_code = None
-        if user_type == "reseller":
-            user_partner_code = generate_partner_code(user.id)
-        
-        # Create access token
-        access_token = create_access_token(
-            data={
-                "user_id": user.id,
-                "email": user.email,
-                "tenant_id": user.tenant_id,
-                "role": role_name
-            }
-        )
-        
-        return {
-            "message": "Registration successful",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": role_name
-            },
-            "partner_code": user_partner_code
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+            new_tenant = Tenant(name=f"{full_name}'s Workspace", status='TRIAL')
+            db.add(new_tenant)
+            db.flush()
+            tenant_id = new_tenant.id
+            role = 'USER'
+    
+    hashed_password = get_password_hash(password)
+    
+    new_user = User(
+        email=email,
+        full_name=full_name,
+        hashed_password=hashed_password,
+        role=role,
+        tenant_id=tenant_id,
+        is_active=True
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    access_token = create_access_token(data={"user_id": new_user.id})
+    
+    permissions = get_user_permissions(new_user)
+    
+    partner_code_generated = None
+    if role == 'TENANT_ADMIN':
+        partner_code_generated = generate_partner_code(new_user.id)
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "full_name": new_user.full_name,
+            "role": new_user.role,
+            "tenant_id": new_user.tenant_id,
+            "permissions": permissions
+        },
+        "partner_code": partner_code_generated
+    }
 
-
-@router.post("/login", response_model=dict)
-async def login(credentials: UserLogin, db: Session = Depends(get_system_db)):
+@router.post("/login")
+async def login(
+    email: str,
+    password: str,
+    db: Session = Depends(get_system_db)
+):
     """
-    Login user
+    Login endpoint - returns token and user with permissions
     """
-    user = db.query(User).filter(User.email == credentials.email).first()
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
+    
+    if not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+    
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive"
+            detail="User account is inactive"
         )
     
-    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
-    access_token = create_access_token(
-        data={
-            "user_id": user.id,
-            "email": user.email,
-            "tenant_id": user.tenant_id,
-            "role": user.role.name if user.role else None
-        }
-    )
+    access_token = create_access_token(data={"user_id": user.id})
+    
+    permissions = get_user_permissions(user)
     
     return {
-        "message": "Login successful",
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "role": user.role.name if user.role else None
-        },
-        "tenant": {
-            "id": tenant.id if tenant else None,
-            "name": tenant.name if tenant else None,
-            "status": tenant.status.value if tenant else None
+            "role": user.role,
+            "tenant_id": user.tenant_id,
+            "permissions": permissions
         }
     }
 
-@router.get("/me", response_model=dict)
-async def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_system_db)):
+@router.get("/me")
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_system_db)
+):
     """
-    Get current authenticated user info
+    Get current user info with permissions
     """
-    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    permissions = get_user_permissions(current_user)
     
     return {
-        "user": {
-            "id": current_user.id,
-            "email": current_user.email,
-            "full_name": current_user.full_name,
-            "role": current_user.role.name if user.role else None,
-            "is_active": current_user.is_active
-        },
-        "tenant": {
-            "id": tenant.id if tenant else None,
-            "name": tenant.name if tenant else None,
-            "status": tenant.status.value if tenant else None
-        } if tenant else None
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "tenant_id": current_user.tenant_id,
+        "is_active": current_user.is_active,
+        "permissions": permissions
     }
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email: str,
+    db: Session = Depends(get_system_db)
+):
+    """
+    Forgot password endpoint
+    """
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        return {"message": "If email exists, reset link sent"}
+    
+    return {"message": "If email exists, reset link sent"}

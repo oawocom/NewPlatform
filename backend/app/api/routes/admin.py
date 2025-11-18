@@ -1,6 +1,6 @@
-from sqlalchemy import text
+from sqlalchemy import text, func
 """
-Admin-specific routes - for Tenant Admins with RBAC
+Admin routes - Using new permission system
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -8,10 +8,17 @@ import sys
 sys.path.insert(0, '/app')
 
 from app.core.database import get_system_db
-from app.core.dependencies import get_current_user, require_admin, check_permission
+from app.core.dependencies import get_current_user
 from app.core.security import get_password_hash
+from app.core.permissions import (
+    has_permission, 
+    apply_tenant_filter, 
+    is_super_admin,
+    Permissions
+)
 from app.models.user import User
 from app.models.project import Project
+from app.models.tenant import Tenant
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -20,19 +27,21 @@ async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """Get dashboard statistics"""
+    """Get dashboard statistics with tenant filtering"""
     
-    # Count users
-    users_count = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
+    if not has_permission(current_user, Permissions.VIEW_DASHBOARD):
+        raise HTTPException(status_code=403, detail="Permission denied")
     
-    # Count projects
-    projects_count = db.execute(text("SELECT COUNT(*) FROM projects")).scalar()
-    
-    # Count tenants
-    tenants_count = db.execute(text("SELECT COUNT(*) FROM tenants")).scalar()
-    
-    # Count active users
-    active_users = db.execute(text("SELECT COUNT(*) FROM users WHERE is_active = true")).scalar()
+    if is_super_admin(current_user):
+        users_count = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
+        active_users = db.execute(text("SELECT COUNT(*) FROM users WHERE is_active = true")).scalar()
+        projects_count = db.execute(text("SELECT COUNT(*) FROM projects")).scalar()
+        tenants_count = db.execute(text("SELECT COUNT(*) FROM tenants")).scalar()
+    else:
+        users_count = db.execute(text(f"SELECT COUNT(*) FROM users WHERE tenant_id = {current_user.tenant_id}")).scalar()
+        active_users = db.execute(text(f"SELECT COUNT(*) FROM users WHERE tenant_id = {current_user.tenant_id} AND is_active = true")).scalar()
+        projects_count = db.execute(text(f"SELECT COUNT(*) FROM projects WHERE tenant_id = {current_user.tenant_id}")).scalar()
+        tenants_count = 1
     
     return {
         "users_count": users_count or 0,
@@ -43,16 +52,17 @@ async def get_dashboard_stats(
 
 @router.get("/users")
 async def list_tenant_users(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """List all users - SUPER_ADMIN sees all, others see tenant users only"""
-    # SUPER_ADMIN sees ALL users
-    if current_user.role and current_user.role.name == 'SUPER_ADMIN':
-        users = db.query(User).all()
-    else:
-        # Tenant admin sees only their tenant users
-        users = db.query(User).filter(User.tenant_id == current_user.tenant_id).all()
+    """List users with permission and tenant filtering"""
+    
+    if not has_permission(current_user, Permissions.VIEW_USERS):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    query = db.query(User)
+    query = apply_tenant_filter(query, User, current_user)
+    users = query.all()
     
     return {
         "items": [
@@ -60,8 +70,7 @@ async def list_tenant_users(
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role.name if user.role else None,
-                "role_id": user.role_id,
+                "role": user.role,
                 "is_active": user.is_active,
                 "tenant_id": user.tenant_id,
                 "created_at": user.created_at.isoformat() if user.created_at else None
@@ -72,16 +81,17 @@ async def list_tenant_users(
 
 @router.get("/projects")
 async def list_tenant_projects(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """List all projects - SUPER_ADMIN sees all, others see tenant projects only"""
-    # SUPER_ADMIN sees ALL projects
-    if current_user.role and current_user.role.name == 'SUPER_ADMIN':
-        projects = db.query(Project).all()
-    else:
-        # Tenant admin sees only their tenant projects
-        projects = db.query(Project).filter(Project.tenant_id == current_user.tenant_id).all()
+    """List projects with permission and tenant filtering"""
+    
+    if not has_permission(current_user, Permissions.VIEW_PROJECTS):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    query = db.query(Project)
+    query = apply_tenant_filter(query, Project, current_user)
+    projects = query.all()
     
     return {
         "items": [
@@ -102,34 +112,33 @@ async def create_user_admin(
     email: str,
     full_name: str,
     password: str,
-    role_id: int,
+    role: str,
     tenant_id: int = None,
     is_active: bool = True,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """Create a new user (admin only)"""
+    """Create user with permission check"""
     
+    if not has_permission(current_user, Permissions.CREATE_USERS):
+        raise HTTPException(status_code=403, detail="Permission denied")
     
-    
-    # Check if user exists
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # If no tenant_id provided, use current user's tenant
     if not tenant_id:
         tenant_id = current_user.tenant_id
     
-    # Hash password
-    hashed_password = get_password_hash(password)
+    if not is_super_admin(current_user) and tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Cannot create users in other tenants")
     
-    # Create user
+    hashed_password = get_password_hash(password)
     new_user = User(
         email=email,
         full_name=full_name,
         hashed_password=hashed_password,
-        role_id=role_id,
+        role=role,
         tenant_id=tenant_id,
         is_active=is_active
     )
@@ -142,7 +151,7 @@ async def create_user_admin(
         "id": new_user.id,
         "email": new_user.email,
         "full_name": new_user.full_name,
-        "role_id": new_user.role_id,
+        "role": new_user.role,
         "tenant_id": new_user.tenant_id,
         "is_active": new_user.is_active
     }
@@ -152,40 +161,31 @@ async def create_user_with_company(
     email: str,
     full_name: str,
     password: str,
-    role_id: int,
+    role: str,
     company_name: str = None,
     parent_admin_id: int = None,
     is_active: bool = True,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """Create user with automatic tenant handling"""
-    from app.models.tenant import Tenant
+    """Create user with company"""
     
+    if not has_permission(current_user, Permissions.CREATE_USERS):
+        raise HTTPException(status_code=403, detail="Permission denied")
     
-    
-    # Check if user exists
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Determine tenant_id based on role
     tenant_id = None
-    
-    # Check role to determine if admin or user
-    role = db.execute(text(f"SELECT name FROM roles WHERE id = {role_id}")).fetchone()
-    role_name = role[0] if role else None
-    
-    is_admin = role_name in ['SUPER_ADMIN', 'TENANT_ADMIN']
+    is_admin = role in ['SUPER_ADMIN', 'TENANT_ADMIN']
     
     if is_admin and company_name:
-        # Create new tenant for admin
         new_tenant = Tenant(name=company_name, status='TRIAL')
         db.add(new_tenant)
         db.flush()
         tenant_id = new_tenant.id
     elif not is_admin and parent_admin_id:
-        # Use parent admin's tenant for users
         parent = db.query(User).filter(User.id == parent_admin_id).first()
         if parent:
             tenant_id = parent.tenant_id
@@ -193,15 +193,12 @@ async def create_user_with_company(
     if not tenant_id:
         tenant_id = current_user.tenant_id
     
-    # Hash password
     hashed_password = get_password_hash(password)
-    
-    # Create user
     new_user = User(
         email=email,
         full_name=full_name,
         hashed_password=hashed_password,
-        role_id=role_id,
+        role=role,
         tenant_id=tenant_id,
         is_active=is_active
     )
@@ -214,7 +211,7 @@ async def create_user_with_company(
         "id": new_user.id,
         "email": new_user.email,
         "full_name": new_user.full_name,
-        "role_id": new_user.role_id,
+        "role": new_user.role,
         "tenant_id": new_user.tenant_id,
         "is_active": new_user.is_active
     }
@@ -223,43 +220,45 @@ async def create_user_with_company(
 async def reset_user_password(
     user_id: int,
     new_password: str,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """Reset user password (admin only)"""
-    from app.core.security import get_password_hash
+    """Reset password"""
+    
+    if not has_permission(current_user, Permissions.RESET_PASSWORDS):
+        raise HTTPException(status_code=403, detail="Permission denied")
     
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    if not is_super_admin(current_user) and user.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Cannot reset password for users in other tenants")
     
     user.hashed_password = get_password_hash(new_password)
     db.commit()
     
     return {"message": "Password reset successfully"}
 
-@router.get("/dashboard/stats")
-async def get_dashboard_stats(
+@router.get("/tenant-admins")
+async def get_tenant_admins(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ):
-    """Get dashboard statistics"""
+    """Get tenant admins"""
     
-    # Count users
-    users_count = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
-    
-    # Count projects
-    projects_count = db.execute(text("SELECT COUNT(*) FROM projects")).scalar()
-    
-    # Count tenants
-    tenants_count = db.execute(text("SELECT COUNT(*) FROM tenants")).scalar()
-    
-    # Count active users
-    active_users = db.execute(text("SELECT COUNT(*) FROM users WHERE is_active = true")).scalar()
+    query = db.query(User).filter(User.role == 'TENANT_ADMIN')
+    query = apply_tenant_filter(query, User, current_user)
+    admins = query.all()
     
     return {
-        "users_count": users_count or 0,
-        "projects_count": projects_count or 0,
-        "tenants_count": tenants_count or 0,
-        "active_users": active_users or 0
+        "items": [
+            {
+                "id": admin.id,
+                "full_name": admin.full_name,
+                "email": admin.email,
+                "company_name": admin.tenant.name if admin.tenant else None
+            }
+            for admin in admins
+        ]
     }

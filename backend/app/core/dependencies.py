@@ -1,16 +1,16 @@
 """
-FastAPI dependencies - authentication and authorization with RBAC
+FastAPI dependencies - Authentication using new permission system
 """
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import Optional, List
-from .database import get_system_db
-from .security import decode_access_token
+import sys
+sys.path.insert(0, '/app')
+
+from app.core.database import get_system_db
+from app.core.security import decode_access_token
+from app.core.permissions import has_permission, is_super_admin, is_any_admin
 from app.models.user import User
-from app.models.role import Role
-from app.models.permission import Permission
-from app.models.role_permission import RolePermission
 
 security = HTTPBearer()
 
@@ -19,11 +19,10 @@ async def get_current_user(
     db: Session = Depends(get_system_db)
 ) -> User:
     """
-    Get current authenticated user from JWT token
+    Get current authenticated user from JWT token.
     """
     token = credentials.credentials
     
-    # Decode token
     payload = decode_access_token(token)
     if payload is None:
         raise HTTPException(
@@ -40,7 +39,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Get user from database with role
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(
@@ -57,78 +55,30 @@ async def get_current_user(
     
     return user
 
-async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
-    """
-    Verify user is active
-    """
-    if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    return current_user
-
-def get_user_permissions(user: User, db: Session) -> List[str]:
-    """
-    Get all permission names for a user based on their role
-    """
-    if not user.role_id:
-        return []
-    
-    permissions = db.query(Permission.name)\
-        .join(RolePermission, Permission.id == RolePermission.permission_id)\
-        .filter(RolePermission.role_id == user.role_id)\
-        .all()
-    
-    return [p.name for p in permissions]
-
-def check_permission(user: User, permission_name: str, db: Session) -> bool:
-    """
-    Check if user has a specific permission
-    """
-    permissions = get_user_permissions(user, db)
-    return permission_name in permissions
-
-async def require_permission(permission_name: str):
-    """
-    Dependency to require a specific permission
-    """
-    async def permission_checker(
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_system_db)
-    ) -> User:
-        if not check_permission(current_user, permission_name, db):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission required: {permission_name}"
-            )
-        return current_user
-    return permission_checker
 
 async def require_admin(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ) -> User:
     """
-    Require user to have admin permissions (view_users or manage_tenants)
+    Require user to be any kind of admin.
     """
-    if not check_permission(current_user, 'view_users', db):
+    if not is_any_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
     return current_user
 
+
 async def require_super_admin(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_system_db)
 ) -> User:
     """
-    Require user to be super admin (can manage tenants)
+    Require user to be super admin.
     """
-    if not check_permission(current_user, 'manage_tenants', db):
+    if not is_super_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Super admin access required"
