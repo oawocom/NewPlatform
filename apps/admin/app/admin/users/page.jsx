@@ -80,45 +80,45 @@ export default function UsersPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Users</h1>
-          <p className="text-gray-600 mt-1">Manage users</p>
+          <p className="text-gray-600 dark:text-gray-400600 mt-1">Manage users</p>
         </div>
         <a href="/admin/users/create" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add User</a>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {users.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-gray-600 dark:text-gray-400500">
             <p>No users found</p>
           </div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner Code</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Partner Code</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
               {users.map((user) => {
                 const tenant = getTenant(user.tenant_id);
                 const partnerCode = (user.role === 'TENANT_ADMIN') ? generatePartnerCode(user.id) : null;
                 
                 return (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-400900">{user.full_name}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                         {getRoleDisplay(user)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400900">
                       {tenant?.name || '-'}
                     </td>
                     <td className="px-6 py-4">

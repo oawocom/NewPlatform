@@ -18,7 +18,7 @@ async def get_dashboard_stats(
     if current_user.role == 'SUPER_ADMIN':
         users_result = db.execute(text("SELECT COUNT(*) FROM users"))
         projects_result = db.execute(text("SELECT COUNT(*) FROM projects"))
-        tenants_result = db.execute(text("SELECT COUNT(*) FROM tenants"))
+        tenants_result = db.execute(text("SELECT COUNT(DISTINCT tenant_id) FROM users WHERE role = 'TENANT_ADMIN'"))
         active_users_result = db.execute(text("SELECT COUNT(*) FROM users WHERE is_active = true"))
     else:
         tenant_id = current_user.tenant_id

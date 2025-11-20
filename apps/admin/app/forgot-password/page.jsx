@@ -44,7 +44,7 @@ export default function ForgotPassword() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto" />
+          <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto md:mx-0" />
           
           <div className="text-center mb-8">
             <span className="text-6xl">✉️</span>
@@ -75,9 +75,9 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto" />
+        <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto md:mx-0" />
         
-        <div className="mb-6">
+        <div className="mb-6 text-center md:text-left">
           <h1 className="text-2xl font-bold text-gray-900">Forgot Password?</h1>
           <p className="text-gray-600 mt-2">
             No worries! Enter your email and we'll send you reset instructions.

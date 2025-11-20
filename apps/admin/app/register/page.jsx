@@ -7,7 +7,7 @@ import { BRANDING } from '../config/branding';
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState('reseller');
+  const [userType, setUserType] = useState('user');
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',

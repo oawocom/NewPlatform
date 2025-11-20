@@ -61,9 +61,9 @@ export default function AdminProjectsPage() {
 
   return (
     <div>
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
         <div className="p-6 border-b flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Manage Projects</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Projects</h2>
           <a href="/admin/projects/create" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
             ➕ Create Project
           </a>
@@ -72,7 +72,7 @@ export default function AdminProjectsPage() {
         {loading ? (
           <div className="p-8 text-center">Loading...</div>
         ) : projects.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-gray-600 dark:text-gray-400500">
             <p className="mb-4 text-xl">No projects yet</p>
             <a href="/admin/projects/create" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               Create Your First Project
@@ -82,17 +82,17 @@ export default function AdminProjectsPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subdomain</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Subdomain</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Created By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Created</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {projects.map(project => (
-                <tr key={project.id} className="hover:bg-gray-50">
+                <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 font-medium">{project.name}</td>
                   <td className="px-6 py-4">
                     <a href={`https://${project.subdomain}.buildown.design`} target="_blank" className="text-blue-600 hover:underline">
@@ -101,15 +101,15 @@ export default function AdminProjectsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      project.published_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      project.published_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600 dark:text-gray-400800'
                     }`}>
                       {project.published_at ? 'Published' : 'Draft'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400600">
                     {project.created_by_name || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400600">
                     {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-4">
