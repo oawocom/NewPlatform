@@ -12,14 +12,21 @@ export default function AdminLayout({ children }) {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
     
-    if (!token) {
+    if (!token || !userData) {
       router.push('/');
       return;
     }
     
-    const user = JSON.parse(userData);
-    setUser(user);
-    setPermissions(user.permissions || []);
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      setPermissions(parsedUser.permissions || []);
+    } catch (error) {
+      console.error('Failed to parse user data:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.push('/');
+    }
   }, [router]);
 
   const handleLogout = () => {
@@ -32,7 +39,11 @@ export default function AdminLayout({ children }) {
     return permissions.includes(permission);
   };
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">

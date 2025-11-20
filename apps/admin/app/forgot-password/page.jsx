@@ -1,9 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { BRANDING } from '../config/branding';
-import axios from 'axios';
-
-const API_URL = '/api/v1';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -30,7 +27,12 @@ export default function ForgotPassword() {
     
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/auth/forgot-password?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/v1/auth/forgot-password?email=${encodeURIComponent(email)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await res.json();
       setSuccess(true);
     } catch (error) {
       setError('Something went wrong. Please try again.');
@@ -42,18 +44,22 @@ export default function ForgotPassword() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8" />
+          <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto" />
           
           <div className="text-center mb-8">
             <span className="text-6xl">✉️</span>
             <h1 className="text-2xl font-bold text-gray-900 mt-4">Check Your Email</h1>
-            <p className="text-gray-600 mt-2">We've sent password reset instructions to</p>
+            <p className="text-gray-600 mt-2">If an account exists for</p>
             <p className="text-primary-600 font-semibold mt-1">{email}</p>
+            <p className="text-gray-600 mt-2">you will receive a password reset link.</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <p className="text-gray-700 text-center mb-4">
-              Click the link in the email to reset your password. Check your spam folder if you don't see it.
+              Click the link in the email to reset your password. The link will expire in 1 hour.
+            </p>
+            <p className="text-sm text-gray-500 text-center mb-4">
+              Check your spam folder if you don't see it.
             </p>
             <div className="text-center">
               <a href="/" className="text-primary-600 hover:text-primary-700 font-semibold">
@@ -69,7 +75,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8" />
+        <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-8 mx-auto" />
         
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Forgot Password?</h1>
@@ -116,7 +122,7 @@ export default function ForgotPassword() {
 
         <div className="mt-6 flex items-center justify-center text-sm text-gray-500">
           <span className="mr-2">🔒</span>
-          <span>Your security is our priority. The reset link expires in 1 hour.</span>
+          <span>The reset link expires in 1 hour for security.</span>
         </div>
       </div>
     </div>

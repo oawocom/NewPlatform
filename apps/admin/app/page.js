@@ -57,6 +57,29 @@ export default function HomePage() {
 
       if (!response.ok) {
         const error = await response.json();
+        
+        // Check if email not verified
+        if (error.detail === 'Please verify your email before logging in') {
+          const confirmResend = confirm('Your email is not verified yet. Would you like to resend the verification code?');
+          if (confirmResend) {
+            // Resend OTP
+            const resendRes = await fetch(`${API_URL}/auth/resend-otp?email=${encodeURIComponent(loginData.email)}`, {
+              method: 'POST'
+            });
+            const resendData = await resendRes.json();
+            
+            if (resendData.email_sent) {
+              alert('✅ Verification code sent! Check your email.');
+              window.location.href = `/verify-email?email=${encodeURIComponent(loginData.email)}`;
+            } else {
+              setLoginErrors({ submit: 'Failed to send verification code. Please try again.' });
+            }
+          } else {
+            window.location.href = `/verify-email?email=${encodeURIComponent(loginData.email)}`;
+          }
+          return;
+        }
+        
         throw new Error(error.detail || 'Login failed');
       }
 
