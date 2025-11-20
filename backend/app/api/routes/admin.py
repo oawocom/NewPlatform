@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy import text, text
 from app.core.database import get_system_db
 from app.core.dependencies import get_current_user
 from app.core.permissions import has_permission, Permissions
@@ -186,3 +187,16 @@ async def reset_user_password(
     db.commit()
     
     return {"message": "Password reset successfully"}
+
+
+@router.get("/has-tenant-admins")
+async def has_tenant_admins(db: Session = Depends(get_system_db)):
+    """Check if any tenant admins exist (public endpoint)"""
+    try:
+        query = text("SELECT COUNT(*) FROM users WHERE role = 'TENANT_ADMIN' AND is_active = true")
+        result = db.execute(query)
+        count = result.scalar()
+        return {"has_admins": count > 0, "count": int(count) if count else 0}
+    except Exception as e:
+        print(f"Error checking tenant admins: {e}")
+        return {"has_admins": False, "count": 0}

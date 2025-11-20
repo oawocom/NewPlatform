@@ -58,11 +58,9 @@ export default function HomePage() {
       if (!response.ok) {
         const error = await response.json();
         
-        // Check if email not verified
         if (error.detail === 'Please verify your email before logging in') {
           const confirmResend = confirm('Your email is not verified yet. Would you like to resend the verification code?');
           if (confirmResend) {
-            // Resend OTP
             const resendRes = await fetch(`${API_URL}/auth/resend-otp?email=${encodeURIComponent(loginData.email)}`, {
               method: 'POST'
             });
@@ -131,70 +129,79 @@ export default function HomePage() {
       `}</style>
 
       <div className="max-w-6xl mx-auto w-full">
-        <div className="grid md:grid-cols-2 gap-12 items-start">
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           
-          <div>
-            <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-4" />
+          <div className="text-center md:text-left">
+            <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mb-6 mx-auto md:mx-0" />
             
-            <div className="mb-4">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <div className="mb-6">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Build Your Digital Empire
               </h1>
-              <p className="text-xl text-gray-600">
+              <p className="text-lg md:text-xl text-gray-600">
                 Everything you need to run your business in one powerful platform
               </p>
             </div>
 
-            <div className="relative h-24 overflow-visible">
-              <div 
-                className={`flex items-start space-x-4 absolute w-full ${
-                  isTransitioning ? 'slide-out-up' : ''
-                }`}
-              >
-                <span className="text-5xl flex-shrink-0">{currentModule.icon}</span>
-                <div className="flex-1 pr-16">
-                  <h3 className="font-bold text-gray-900 text-xl mb-1">{currentModule.title}</h3>
-                  <p className="text-gray-600 text-base">{currentModule.description}</p>
-                </div>
-
-                {isDesktop && (
-                  <button
-                    onClick={() => setShowModulesPopup(true)}
-                    className="absolute right-[100px] top-1/2 text-gray-700 hover:text-primary-600 transition-colors arrow-animate"
-                    title="View all modules"
+            {isDesktop && (
+              <>
+                <div className="relative h-24 overflow-visible">
+                  <div 
+                    className={`flex items-start space-x-4 absolute w-full ${
+                      isTransitioning ? 'slide-out-up' : ''
+                    }`}
                   >
-                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+                    <span className="text-5xl flex-shrink-0">{currentModule.icon}</span>
+                    <div className="flex-1 pr-16">
+                      <h3 className="font-bold text-gray-900 text-xl mb-1">{currentModule.title}</h3>
+                      <p className="text-gray-600 text-base">{currentModule.description}</p>
+                    </div>
 
-              {isTransitioning && (
-                <div className="flex items-start space-x-4 absolute w-full slide-in-up">
-                  <span className="text-5xl flex-shrink-0">{nextModule.icon}</span>
-                  <div className="flex-1 pr-16">
-                    <h3 className="font-bold text-gray-900 text-xl mb-1">{nextModule.title}</h3>
-                    <p className="text-gray-600 text-base">{nextModule.description}</p>
-                  </div>
-
-                  {isDesktop && (
                     <button
                       onClick={() => setShowModulesPopup(true)}
-                      className="absolute right-[100px] top-1/2 text-gray-700 hover:text-primary-600 transition-colors arrow-animate"
+                      className="absolute right-[60px] top-1/2 text-gray-700 hover:text-primary-600 transition-colors arrow-animate"
                       title="View all modules"
                     >
                       <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
                     </button>
+                  </div>
+
+                  {isTransitioning && (
+                    <div className="flex items-start space-x-4 absolute w-full slide-in-up">
+                      <span className="text-5xl flex-shrink-0">{nextModule.icon}</span>
+                      <div className="flex-1 pr-16">
+                        <h3 className="font-bold text-gray-900 text-xl mb-1">{nextModule.title}</h3>
+                        <p className="text-gray-600 text-base">{nextModule.description}</p>
+                      </div>
+
+                      <button
+                        onClick={() => setShowModulesPopup(true)}
+                        className="absolute right-[60px] top-1/2 text-gray-700 hover:text-primary-600 transition-colors arrow-animate"
+                        title="View all modules"
+                      >
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+
+                <div className="space-y-3 text-left">
+                  <p className="text-gray-700 font-medium">
+                    ✨ Join thousands of businesses already transforming their operations
+                  </p>
+                  <p className="text-gray-600 text-sm">
+                    🚀 Get started in minutes • 💪 No credit card required • 🎉 14-day free trial
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Sign in to your account</h2>
               <p className="text-gray-600 mt-1">Welcome back! Please enter your details.</p>
@@ -262,24 +269,24 @@ export default function HomePage() {
       </div>
 
       {showModulesPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-[95%] max-h-[90vh] overflow-y-auto p-6 md:p-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900">All Modules</h2>
+              <h2 className="text-2xl font-bold text-gray-900">All Modules ({MODULES.length})</h2>
               <button
                 onClick={() => setShowModulesPopup(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                className="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none"
               >
                 ×
               </button>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {MODULES.map((module, idx) => (
-                <div key={idx} className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50">
-                  <span className="text-4xl flex-shrink-0">{module.icon}</span>
+                <div key={idx} className="flex items-start space-x-3 p-4 rounded-lg hover:bg-gray-50 border border-gray-100 transition">
+                  <span className="text-3xl flex-shrink-0">{module.icon}</span>
                   <div>
-                    <h3 className="font-bold text-gray-900 text-lg mb-1">{module.title}</h3>
-                    <p className="text-gray-600 text-sm">{module.description}</p>
+                    <h3 className="font-bold text-gray-900 text-base mb-1">{module.title}</h3>
+                    <p className="text-gray-600 text-xs">{module.description}</p>
                   </div>
                 </div>
               ))}

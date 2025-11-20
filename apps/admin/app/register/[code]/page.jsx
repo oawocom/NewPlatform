@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BRANDING } from '../../config/branding';
@@ -10,6 +10,7 @@ export default function ReferralRegisterPage() {
   const partnerCode = params.code?.toUpperCase() || '';
   
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -18,11 +19,36 @@ export default function ReferralRegisterPage() {
   });
   const [errors, setErrors] = useState({});
 
-  // Validate partner code format only
-  if (!partnerCode.startsWith('PA')) {
-    router.push('/register');
-    return null;
-  }
+  useEffect(() => {
+    if (!partnerCode.startsWith('PA')) {
+      router.push('/register');
+      return;
+    }
+
+    Promise.all([
+      fetch('/api/v1/admin/has-tenant-admins').then(r => r.json()),
+      fetch(`/api/v1/auth/validate-partner-code?code=${partnerCode}`).then(r => r.json())
+    ])
+    .then(([adminsData, codeData]) => {
+      if (!adminsData.has_admins) {
+        alert('No partner codes available yet. Please register normally.');
+        router.push('/register');
+        return;
+      }
+      
+      if (!codeData.valid) {
+        alert('Invalid or expired partner code. Please contact your administrator.');
+        router.push('/register');
+        return;
+      }
+      
+      setChecking(false);
+    })
+    .catch(err => {
+      console.error('Validation failed:', err);
+      router.push('/register');
+    });
+  }, [partnerCode, router]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -79,10 +105,7 @@ export default function ReferralRegisterPage() {
       const data = await res.json();
       
       if (res.ok) {
-        alert('Account created successfully! Welcome aboard!');
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        router.push('/admin/dashboard');
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
       } else {
         alert(data.detail || 'Registration failed. Please check the partner code and try again.');
       }
@@ -94,10 +117,20 @@ export default function ReferralRegisterPage() {
     }
   };
 
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Validating invitation...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl">
-        {/* Logo & Header */}
         <div className="text-center mb-8">
           <img src={BRANDING.logo.image} alt={BRANDING.logo.alt} className="h-16 mx-auto mb-4" />
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Join via Invitation</h1>
@@ -111,10 +144,8 @@ export default function ReferralRegisterPage() {
           </div>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name & Email */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
@@ -145,7 +176,6 @@ export default function ReferralRegisterPage() {
               </div>
             </div>
 
-            {/* Passwords */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
@@ -176,7 +206,6 @@ export default function ReferralRegisterPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -185,7 +214,6 @@ export default function ReferralRegisterPage() {
               {loading ? 'Creating Account...' : 'Join Team'}
             </button>
 
-            {/* Sign In Link */}
             <div className="text-center pt-4">
               <p className="text-gray-600">
                 Already have an account?{' '}
@@ -197,7 +225,6 @@ export default function ReferralRegisterPage() {
           </form>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-6 text-gray-600 flex items-center justify-center space-x-2">
           <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
