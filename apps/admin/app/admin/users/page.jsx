@@ -29,7 +29,7 @@ export default function UsersPage() {
       const usersRes = await api.get('/admin/users');
       setUsers(usersRes.data.items || []);
 
-      const tenantsRes = await api.get('/crud/tenants');
+      const tenantsRes = await api.get('/tenants');
       setTenants(Array.isArray(tenantsRes.data) ? tenantsRes.data : []);
     } catch (err) {
       console.error('Error:', err);
@@ -42,7 +42,7 @@ export default function UsersPage() {
     if (!confirm('Delete this user?')) return;
     
     try {
-      await api.delete(`/crud/users/${userId}`);
+      await api.delete(`/users/${userId}`);
       fetchData();
     } catch (err) {
       alert('Failed to delete');

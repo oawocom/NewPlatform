@@ -20,7 +20,7 @@ export default function EditProjectPage() {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const response = await api.get('/crud/projects/' + projectId);
+        const response = await api.get('/projects/' + projectId);
         setFormData({
           name: response.data.name || '',
           subdomain: response.data.subdomain || '',
@@ -42,7 +42,7 @@ export default function EditProjectPage() {
     setError('');
 
     try {
-      await api.put('/crud/projects/' + projectId, formData);
+      await api.put('/projects/' + projectId, formData);
       alert('✅ Project updated successfully!');
       router.push('/admin/projects');
     } catch (err) {

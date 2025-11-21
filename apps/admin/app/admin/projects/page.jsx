@@ -25,7 +25,7 @@ export default function AdminProjectsPage() {
   const handleDelete = async (projectId) => {
     if (!confirm('Delete this project?')) return;
     try {
-      await api.delete('/crud/projects/' + projectId);
+      await api.delete('/projects/' + projectId);
       alert('Project deleted');
       fetchProjects();
     } catch (err) {
@@ -36,7 +36,7 @@ export default function AdminProjectsPage() {
   const handlePublish = async (projectId) => {
     if (!confirm('Publish this project?')) return;
     try {
-      await api.post('/crud/projects/' + projectId + '/publish');
+      await api.post('/projects/' + projectId + '/publish');
       alert('✅ Published!');
       fetchProjects();
     } catch (err) {

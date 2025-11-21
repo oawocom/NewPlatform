@@ -35,7 +35,7 @@ export default function EditUserPage() {
 
   const fetchUser = async () => {
     try {
-      const response = await api.get('/crud/users/' + userId);
+      const response = await api.get('/users/' + userId);
       setFormData({
         email: response.data.email,
         full_name: response.data.full_name,
@@ -61,7 +61,7 @@ export default function EditUserPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put('/crud/users/' + userId, formData);
+      await api.put('/users/' + userId, formData);
       alert('User updated successfully');
       router.push('/admin/users');
     } catch (err) {

@@ -92,7 +92,7 @@ async def get_table_metadata(
         response = {
             'table': table_name,
             'title': table_name.capitalize(),
-            'apiEndpoint': f'/api/v1/crud/{table_name}',
+            'apiEndpoint': f'/api/v1/{table_name}',
             'fields': fields,
             'columns': [
                 {

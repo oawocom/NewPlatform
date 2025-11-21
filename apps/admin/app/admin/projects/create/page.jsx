@@ -22,7 +22,7 @@ export default function CreateProjectPage() {
     const user = JSON.parse(localStorage.getItem('user'));
 
     try {
-      await api.post('/crud/projects', {
+      await api.post('/projects', {
         name: formData.name,
         subdomain: formData.subdomain,
         description: formData.description || '',

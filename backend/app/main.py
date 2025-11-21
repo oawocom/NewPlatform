@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import sys
 sys.path.insert(0, '/app')
 
-from app.api.routes import auth, crud, admin
+from app.api.routes import auth, admin
+from app.api.routes import users, projects, tenants
 
 app = FastAPI(
     title="Platform V2 API",
@@ -23,7 +24,9 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
-app.include_router(crud.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(projects.router, prefix="/api/v1")
+app.include_router(tenants.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 
 @app.get("/")
