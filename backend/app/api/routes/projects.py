@@ -18,6 +18,9 @@ class ProjectResponse(BaseModel):
     status: str
     tenant_id: int
     is_active: bool
+    description: Optional[str] = None
+    modules_enabled: Optional[List[str]] = []
+    password: Optional[str] = None
     
     class Config:
         from_attributes = True

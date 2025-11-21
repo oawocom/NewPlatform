@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -9,6 +10,8 @@ class Project(BaseModel):
     subdomain = Column(String(255), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     status = Column(String(50), default='INACTIVE')
+    password = Column(String(255), nullable=True)
+    modules_enabled = Column(JSONB, default=list, nullable=False)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     published_at = Column(DateTime, nullable=True)
