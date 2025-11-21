@@ -7,6 +7,7 @@ export default function AdminLayout({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,11 +24,11 @@ export default function AdminLayout({ children }) {
       setUser(parsedUser);
       setPermissions(parsedUser.permissions || []);
       
-      // Load dark mode preference
       const darkMode = localStorage.getItem('darkMode') === 'true';
       if (darkMode) {
         document.documentElement.classList.add('dark');
       }
+      setIsDarkMode(darkMode);
     } catch (error) {
       console.error('Failed to parse user data:', error);
       localStorage.removeItem('token');
@@ -39,6 +40,7 @@ export default function AdminLayout({ children }) {
   const toggleDarkMode = () => {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('darkMode', isDark);
+    setIsDarkMode(isDark);
   };
 
   const handleLogout = () => {
@@ -59,11 +61,10 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-10">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center space-x-4">
-            <img src="/bod_logo.png" alt="Buildown" className="h-8" />
+            <img src={isDarkMode ? "/bod_logo_dark.png" : "/bod_logo.png"} alt="Buildown" className="h-8" />
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="p-2 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -75,7 +76,6 @@ export default function AdminLayout({ children }) {
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Dark/Light Toggle */}
             <button 
               onClick={toggleDarkMode}
               className="p-2 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -89,7 +89,6 @@ export default function AdminLayout({ children }) {
               </svg>
             </button>
 
-            {/* User Dropdown */}
             <div className="relative">
               <button 
                 onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -129,7 +128,6 @@ export default function AdminLayout({ children }) {
       </header>
 
       <div className="flex pt-14 flex-1">
-        {/* Sidebar */}
         <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed left-0 top-14 bottom-0 overflow-hidden transition-all duration-300`}>
           <nav className="p-4 space-y-1">
             {hasPermission('view_dashboard') && (
@@ -195,13 +193,11 @@ export default function AdminLayout({ children }) {
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-0'} transition-all duration-300 p-6`}>
           {children}
         </main>
       </div>
 
-      {/* Footer */}
       <footer className={`${sidebarOpen ? 'ml-64' : 'ml-0'} bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 py-3 px-6 transition-all duration-300`}>
         <div className="text-center text-xs">
           © 2024 Platform V2
