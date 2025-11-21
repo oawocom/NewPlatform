@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from .config import settings
 
 # System database (main)
-SYSTEM_DATABASE_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+SYSTEM_DATABASE_URL = settings.DATABASE_URL
 
 system_engine = create_engine(SYSTEM_DATABASE_URL)
 SystemSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=system_engine)

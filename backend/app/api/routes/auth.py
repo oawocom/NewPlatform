@@ -2,7 +2,7 @@ from sqlalchemy import text
 """
 Authentication routes - Register, Login, Email Verification, Password Reset
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
@@ -21,6 +21,8 @@ from app.core.email import (
 )
 from app.models.user import User
 from app.models.tenant import Tenant
+from app.core.rate_limit import limiter, RATE_LIMITS
+from app.core.validators import validate_password_strength, validate_email_format
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -37,7 +39,9 @@ class RegisterRequest(BaseModel):
     partner_code: str = None
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+@limiter.limit(RATE_LIMITS["register"])
 async def register(
+    request: Request,
     email: str,
     password: str,
     full_name: str,
@@ -52,6 +56,10 @@ async def register(
     """
     from app.core.partner_codes import decode_partner_code, generate_partner_code
     
+    # Validate input
+    email = validate_email_format(email)
+    password = validate_password_strength(password)
+
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -214,14 +222,16 @@ async def resend_otp(
     }
 
 @router.post("/login")
+@limiter.limit(RATE_LIMITS["login"])
 async def login(
-    request: LoginRequest,
+    request: Request,
+    login_data: LoginRequest,
     db: Session = Depends(get_system_db)
 ):
     """
     Login - requires verified email
     """
-    user = db.query(User).filter(User.email == request.email).first()
+    user = db.query(User).filter(User.email == login_data.email).first()
     
     if not user:
         raise HTTPException(
@@ -229,7 +239,7 @@ async def login(
             detail="Incorrect email or password"
         )
     
-    if not verify_password(request.password, user.hashed_password):
+    if not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"

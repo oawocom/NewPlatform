@@ -5,7 +5,7 @@ services:
     container_name: platform_postgres_v2
     environment:
       POSTGRES_USER: platform_user
-      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_PASSWORD: iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF
       POSTGRES_DB: platform_system
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -30,12 +30,12 @@ services:
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_USER=platform_user
-      - POSTGRES_PASSWORD=your_secure_password
+      - POSTGRES_PASSWORD=iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF
       - POSTGRES_DB=platform_system
       - POSTGRES_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DATABASE_URL=postgresql://platform_user:your_secure_password@postgres:5432/platform_system
+      - DATABASE_URL=postgresql://platform_user:iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF@postgres:5432/platform_system
       - REDIS_URL=redis://redis:6379
     ports:
       - "8000:8000"
