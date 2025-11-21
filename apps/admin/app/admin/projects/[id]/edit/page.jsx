@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import api from '../../../../lib/api';
+import { MODULES } from '../../../../config/modules';
 
 export default function EditProjectPage() {
   const [formData, setFormData] = useState({
@@ -16,24 +18,22 @@ export default function EditProjectPage() {
   const projectId = params.id;
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    
-    fetch(`/api/v1/crud/projects/${projectId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
+    const fetchProject = async () => {
+      try {
+        const response = await api.get('/crud/projects/' + projectId);
         setFormData({
-          name: data.name || '',
-          subdomain: data.subdomain || '',
-          description: data.description || ''
+          name: response.data.name || '',
+          subdomain: response.data.subdomain || '',
+          description: response.data.description || ''
         });
         setLoadingData(false);
-      })
-      .catch(err => {
+      } catch (err) {
         setError('Failed to load project');
         setLoadingData(false);
-      });
+      }
+    };
+
+    fetchProject();
   }, [projectId]);
 
   const handleSubmit = async (e) => {
@@ -41,27 +41,12 @@ export default function EditProjectPage() {
     setLoading(true);
     setError('');
 
-    const token = localStorage.getItem('token');
-
     try {
-      const res = await fetch(`/api/v1/crud/projects/${projectId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Failed to update project');
-      }
-
+      await api.put('/crud/projects/' + projectId, formData);
       alert('✅ Project updated successfully!');
       router.push('/admin/projects');
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || 'Failed to update project');
     }
     setLoading(false);
   };
@@ -134,6 +119,20 @@ export default function EditProjectPage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Available Modules Section */}
+      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">📦 Available Modules ({MODULES.length} total)</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Expand your project with these modules</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+          {MODULES.map((module) => (
+            <div key={module.id} className="p-3 border border-gray-300 dark:border-gray-600 rounded hover:shadow-md transition text-sm bg-white dark:bg-gray-700">
+              <div className="font-medium text-gray-900 dark:text-gray-100">{module.icon} {module.title}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{module.description}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

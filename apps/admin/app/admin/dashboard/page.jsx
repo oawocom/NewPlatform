@@ -1,25 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
+import api from '../../lib/api';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    
-    fetch('/api/v1/admin/dashboard/stats', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        setStats(data);
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/admin/dashboard/stats');
+        setStats(response.data);
         setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error(err);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchStats();
   }, []);
 
   if (loading) {

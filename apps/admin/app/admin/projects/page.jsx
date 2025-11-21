@@ -1,25 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
 import DataTable, { Badge, EditIcon, DeleteIcon, PublishIcon } from '../../components/DataTable';
+import api from '../../lib/api';
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchProjects = () => {
-    const token = localStorage.getItem('token');
-    fetch('/api/v1/admin/projects', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        setProjects(data.items || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+  const fetchProjects = async () => {
+    try {
+      const response = await api.get('/admin/projects');
+      setProjects(response.data.items || []);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -28,16 +24,10 @@ export default function AdminProjectsPage() {
 
   const handleDelete = async (projectId) => {
     if (!confirm('Delete this project?')) return;
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/v1/crud/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        alert('Project deleted');
-        fetchProjects();
-      }
+      await api.delete('/crud/projects/' + projectId);
+      alert('Project deleted');
+      fetchProjects();
     } catch (err) {
       alert('Error: ' + err.message);
     }
@@ -45,22 +35,15 @@ export default function AdminProjectsPage() {
 
   const handlePublish = async (projectId) => {
     if (!confirm('Publish this project?')) return;
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/v1/crud/projects/${projectId}/publish`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        alert('✅ Published!');
-        fetchProjects();
-      }
+      await api.post('/crud/projects/' + projectId + '/publish');
+      alert('✅ Published!');
+      fetchProjects();
     } catch (err) {
       alert('Error: ' + err.message);
     }
   };
 
-  // Define table columns
   const columns = [
     {
       key: 'name',
@@ -76,7 +59,7 @@ export default function AdminProjectsPage() {
       label: 'Subdomain',
       render: (project) => (
         <a
-          href={`https://${project.subdomain}.buildown.design`}
+          href={'https://' + project.subdomain + '.buildown.design'}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 dark:text-blue-400 hover:underline"
@@ -114,13 +97,12 @@ export default function AdminProjectsPage() {
     }
   ];
 
-  // Render action buttons
   const renderActions = (project) => (
     <>
       {!project.published_at && (
         <PublishIcon onClick={() => handlePublish(project.id)} />
       )}
-      <EditIcon href={`/admin/projects/${project.id}/edit`} />
+      <EditIcon href={'/admin/projects/' + project.id + '/edit'} />
       <DeleteIcon onClick={() => handleDelete(project.id)} />
     </>
   );

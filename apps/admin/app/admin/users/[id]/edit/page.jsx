@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import api from '../../../../lib/api';
 
 const AVAILABLE_ROLES = [
   { value: 'SUPER_ADMIN', label: 'Super Admin', adminOnly: true },
@@ -33,17 +34,13 @@ export default function EditUserPage() {
   }, []);
 
   const fetchUser = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/v1/crud/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const response = await api.get('/crud/users/' + userId);
       setFormData({
-        email: data.email,
-        full_name: data.full_name,
-        role: data.role || 'USER',
-        is_active: data.is_active
+        email: response.data.email,
+        full_name: response.data.full_name,
+        role: response.data.role || 'USER',
+        is_active: response.data.is_active
       });
       setLoadingData(false);
     } catch (err) {
@@ -63,19 +60,10 @@ export default function EditUserPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/v1/crud/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        alert('User updated successfully');
-        router.push('/admin/users');
-      } else {
-        alert('Failed to update user');
-      }
+      await api.put('/crud/users/' + userId, formData);
+      alert('User updated successfully');
+      router.push('/admin/users');
     } catch (err) {
       alert('Failed to update user');
     } finally {
@@ -88,19 +76,11 @@ export default function EditUserPage() {
       alert('Password must be at least 6 characters');
       return;
     }
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/v1/admin/users/${userId}/reset-password?new_password=${encodeURIComponent(newPassword)}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        alert('Password reset successfully');
-        setShowResetPassword(false);
-        setNewPassword('');
-      } else {
-        alert('Failed to reset password');
-      }
+      await api.put('/admin/users/' + userId + '/reset-password?new_password=' + encodeURIComponent(newPassword));
+      alert('Password reset successfully');
+      setShowResetPassword(false);
+      setNewPassword('');
     } catch (err) {
       alert('Failed to reset password');
     }
@@ -109,45 +89,97 @@ export default function EditUserPage() {
   if (loadingData) return <div className="p-6 text-gray-600 dark:text-gray-400">Loading...</div>;
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit User</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Update user information</p>
       </div>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-2xl">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-            <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+            <input 
+              type="email" 
+              required 
+              value={formData.email} 
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-            <input type="text" required value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+            <input 
+              type="text" 
+              required 
+              value={formData.full_name} 
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} 
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
-            <select required value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-              {getAvailableRoles().map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+            <select 
+              required 
+              value={formData.role} 
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })} 
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              {getAvailableRoles().map(role => (
+                <option key={role.value} value={role.value}>{role.label}</option>
+              ))}
             </select>
           </div>
           <div className="flex items-center">
-            <input type="checkbox" id="is_active" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="h-4 w-4" />
+            <input 
+              type="checkbox" 
+              id="is_active" 
+              checked={formData.is_active} 
+              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} 
+              className="h-4 w-4" 
+            />
             <label htmlFor="is_active" className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active User</label>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <button type="button" onClick={() => setShowResetPassword(!showResetPassword)} className="text-blue-600 dark:text-blue-400 text-sm">{showResetPassword ? 'Cancel' : 'Reset Password'}</button>
+            <button 
+              type="button" 
+              onClick={() => setShowResetPassword(!showResetPassword)} 
+              className="text-blue-600 dark:text-blue-400 text-sm"
+            >
+              {showResetPassword ? 'Cancel' : 'Reset Password'}
+            </button>
             {showResetPassword && (
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 mb-2" placeholder="New password" />
-                <button type="button" onClick={handleResetPassword} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Reset</button>
+                <input 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 mb-2" 
+                  placeholder="New password" 
+                />
+                <button 
+                  type="button" 
+                  onClick={handleResetPassword} 
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Reset
+                </button>
               </div>
             )}
           </div>
           <div className="flex gap-4 pt-4">
-            <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
               {loading ? 'Saving...' : 'Save'}
             </button>
-            <a href="/admin/users" className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</a>
+            <a 
+              href="/admin/users" 
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </a>
           </div>
         </form>
       </div>

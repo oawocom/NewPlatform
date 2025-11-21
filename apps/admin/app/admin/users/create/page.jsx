@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '../../../lib/api';
 
 export default function CreateUserPage() {
   const [loading, setLoading] = useState(false);
@@ -39,47 +40,32 @@ export default function CreateUserPage() {
     e.preventDefault();
     setLoading(true);
 
-    const token = localStorage.getItem('token');
-    
     try {
-      const res = await fetch('/api/v1/admin/users/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          full_name: formData.full_name,
-          password: formData.password,
-          role: formData.role,
-          company_name: formData.company_name,
-          is_active: formData.is_active
-        })
+      await api.post('/admin/users/create', {
+        email: formData.email,
+        full_name: formData.full_name,
+        password: formData.password,
+        role: formData.role,
+        company_name: formData.company_name,
+        is_active: formData.is_active
       });
 
-      if (res.ok) {
-        router.push('/admin/users');
-      } else {
-        const error = await res.json();
-        alert(error.detail || 'Failed to create user');
-      }
+      router.push('/admin/users');
     } catch (err) {
-      console.error(err);
-      alert('Failed to create user');
+      alert(err.response?.data?.detail || 'Failed to create user');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create User</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Add a new user to the system</p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-2xl">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
