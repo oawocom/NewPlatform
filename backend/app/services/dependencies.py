@@ -46,3 +46,11 @@ def get_tenant_service(
     """Get TenantService instance"""
     from app.services.tenant_service import TenantService
     return TenantService(db=db, current_user=current_user)
+
+
+def get_project_service_public(
+    db: Session = Depends(get_system_db)
+):
+    """Get ProjectService instance (public access, no auth)"""
+    from app.services.project_service import ProjectService
+    return ProjectService(db=db, current_user=None)

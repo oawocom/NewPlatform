@@ -36,14 +36,14 @@ class BaseService(Generic[T]):
     
     def _is_super_admin(self) -> bool:
         """Check if current user is super admin"""
-        return self.current_user.role == 'SUPER_ADMIN'
+        return self.current_user and self.current_user.role == 'SUPER_ADMIN'
     
     def _apply_tenant_filter(self, query):
         """
         Apply tenant isolation filter
         Super admins see all data, regular users only their tenant data
         """
-        if not self._is_super_admin():
+        if self.current_user and not self._is_super_admin():
             # Check if model has tenant_id column
             if hasattr(self.model, 'tenant_id'):
                 query = query.filter(

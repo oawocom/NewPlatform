@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from app.services.project_service import ProjectService
-from app.services.dependencies import get_project_service
+from app.services.dependencies import get_project_service, get_project_service_public
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -89,3 +89,19 @@ async def publish_project(
 ):
     """Publish project"""
     return service.publish_project(project_id)
+
+
+@router.get("/by-subdomain/{subdomain}", response_model=ProjectResponse)
+async def get_project_by_subdomain(
+    subdomain: str,
+    service: ProjectService = Depends(get_project_service_public)
+):
+    """Get project by subdomain (public endpoint)"""
+    project = service.get_by_subdomain(subdomain)
+    if not project:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with subdomain '{subdomain}' not found"
+        )
+    return project
