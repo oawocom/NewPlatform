@@ -5,7 +5,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8002/api/:path*',
+        destination: 'http://backend-go:8002/api/:path*',
       },
     ];
   },

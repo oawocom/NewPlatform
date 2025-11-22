@@ -10,7 +10,7 @@ export function getSubdomain(host: string): string | null {
 export async function getProject(subdomain: string): Promise<any> {
   try {
     const res = await fetch(
-      `http://localhost:8002/api/v1/projects/by-subdomain/${subdomain}`,
+      `http://backend-go:8002/api/v1/projects/by-subdomain/${subdomain}`,
       { cache: 'no-store' }
     );
     if (!res.ok) return null;
