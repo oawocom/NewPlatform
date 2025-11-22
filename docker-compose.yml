@@ -1,5 +1,21 @@
 version: '3.8'
+
 services:
+  backend-go:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    container_name: platform_backend_go
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://platform_user:iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF@postgres:5432/platform_system
+      - JWT_SECRET=your-secret-key-change-this
+    networks:
+      - platform_network
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:15
     container_name: platform_postgres_v2
@@ -7,66 +23,16 @@ services:
       POSTGRES_USER: platform_user
       POSTGRES_PASSWORD: iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF
       POSTGRES_DB: platform_system
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    networks:
-      - platform_network
-
-  redis:
-    image: redis:7-alpine
-    container_name: platform_redis_v2
-    ports:
-      - "6379:6379"
-    networks:
-      - platform_network
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: platform_backend_v2
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_USER=platform_user
-      - POSTGRES_PASSWORD=iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF
-      - POSTGRES_DB=platform_system
-      - POSTGRES_PORT=5432
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - DATABASE_URL=postgresql://platform_user:iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF@postgres:5432/platform_system
-      - REDIS_URL=redis://redis:6379
-    ports:
-      - "8000:8000"
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - platform_network
     volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  admin:
-    build:
-      context: ./apps/admin
-      dockerfile: Dockerfile.dev
-    container_name: platform_admin_v2
-    ports:
-      - "3001:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=/api
-    volumes:
-      - ./apps/admin:/app
-      - /app/node_modules
-      - /app/.next
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - platform_network
-
-volumes:
-  postgres_data:
 
 networks:
   platform_network:
     driver: bridge
+
+volumes:
+  postgres_data:
