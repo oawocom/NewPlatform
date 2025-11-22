@@ -27,7 +27,7 @@ services:
       - "8002:8002"
     environment:
       - DATABASE_URL=postgresql://platform_user:iw3NO6UKZzAiUxS6YOmytQZj9M7MrVzF@postgres:5432/platform_system
-      - JWT_SECRET=your-secret-key-change-this
+      - JWT_SECRET=9RHZeq4yyOnGXdVpsWfAjJSNcQttzJek0mqVuUSe51Qe+A7fE9UAjLBTNzQp4Cz4
     networks:
       - platform_network
     depends_on:

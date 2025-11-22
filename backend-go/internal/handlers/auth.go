@@ -1,6 +1,8 @@
 package handlers
 
 import (
+    "log"
+    "time"
     "strings"
     "github.com/gin-gonic/gin"
     "github.com/yourusername/platform-v2-go/internal/auth"
@@ -100,42 +102,54 @@ func Login(c *gin.Context) {
 }
 
 func Register(c *gin.Context) {
-    email := c.Query("email")
-    password := c.Query("password")
-    fullName := c.Query("full_name")
-
-    if email == "" {
-        var req RegisterRequest
-        if err := c.ShouldBindJSON(&req); err != nil {
-            c.JSON(400, gin.H{"detail": "Invalid request"})
-            return
-        }
-        email = req.Email
-        password = req.Password
-        fullName = req.FullName
+    // Only accept JSON (no query params for security)
+    var req RegisterRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(400, gin.H{"detail": "Invalid request"})
+        return
     }
 
     var existing models.User
-    if database.DB.Where("email = ?", email).First(&existing).Error == nil {
+    if database.DB.Where("email = ?", req.Email).First(&existing).Error == nil {
         c.JSON(400, gin.H{"detail": "Email already registered"})
         return
     }
 
-    hashed, _ := auth.HashPassword(password)
+    hashed, err := auth.HashPassword(req.Password)
+    if err != nil {
+        c.JSON(500, gin.H{"detail": "Failed to hash password"})
+        return
+    }
+
+    // Generate 6-digit OTP
+    otp, err := auth.GenerateOTP()
+    if err != nil {
+        c.JSON(500, gin.H{"detail": "Failed to generate verification code"})
+        return
+    }
+
+    // Set expiry to 1 hour from now
+    expiryTime := time.Now().Add(1 * time.Hour)
 
     user := models.User{
-        Email:          email,
-        FullName:       fullName,
-        HashedPassword: hashed,
-        Role:           "USER",
-        IsActive:       true,
-        EmailVerified:  true,
+        Email:                    req.Email,
+        FullName:                 req.FullName,
+        HashedPassword:           hashed,
+        Role:                     "USER",
+        IsActive:                 true,
+        EmailVerified:            false, // Must verify email
+        EmailVerificationOtp:     &otp,
+        EmailVerificationExpires: &expiryTime,
     }
 
     database.DB.Create(&user)
 
+    // TODO: Send email with OTP
+    // For now, log to console
+    log.Printf("📧 EMAIL VERIFICATION - User: %s, OTP: %s, Expires: %s", user.Email, otp, expiryTime.Format(time.RFC3339))
+
     c.JSON(201, gin.H{
-        "message":      "Registration successful",
+        "message":      "Registration successful. Please check your email for verification code.",
         "user_id":      user.ID,
         "email":        user.Email,
         "email_sent":   true,
@@ -179,6 +193,12 @@ func VerifyEmail(c *gin.Context) {
 
     if user.EmailVerificationOtp == nil {
         c.JSON(400, gin.H{"detail": "No verification code found"})
+        return
+    }
+
+    // Check if OTP expired
+    if user.EmailVerificationExpires != nil && time.Now().After(*user.EmailVerificationExpires) {
+        c.JSON(400, gin.H{"detail": "Verification code expired. Please request a new one."})
         return
     }
 

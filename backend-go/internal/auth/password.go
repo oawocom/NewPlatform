@@ -1,6 +1,7 @@
 package auth
 
 import (
+    "crypto/rand"
     "crypto/subtle"
     "encoding/base64"
     "fmt"
@@ -9,13 +10,19 @@ import (
 )
 
 func HashPassword(password string) (string, error) {
-    salt := []byte("somesalt1234567890")
-    hash := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
+    // Generate random 16-byte salt
+    salt := make([]byte, 16)
+    if _, err := rand.Read(salt); err != nil {
+        return "", fmt.Errorf("failed to generate salt: %w", err)
+    }
+    
+    // Argon2id with stronger parameters: t=3 (iterations), m=64MB, p=4 (parallelism)
+    hash := argon2.IDKey([]byte(password), salt, 3, 64*1024, 4, 32)
     
     b64Salt := base64.RawStdEncoding.EncodeToString(salt)
     b64Hash := base64.RawStdEncoding.EncodeToString(hash)
     
-    return fmt.Sprintf("$argon2id$v=19$m=65536,t=1,p=4$%s$%s", b64Salt, b64Hash), nil
+    return fmt.Sprintf("$argon2id$v=19$m=65536,t=3,p=4$%s$%s", b64Salt, b64Hash), nil
 }
 
 func CheckPassword(password, hash string) bool {
