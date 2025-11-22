@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import DataTable, { Badge, EditIcon, DeleteIcon, PublishIcon } from '../../components/DataTable';
+import DataTable, { Badge, EditIcon, DeleteIcon, PublishIcon, UnpublishIcon } from '../../components/DataTable';
 import api from '../../lib/api';
 
 export default function AdminProjectsPage() {
@@ -44,6 +44,17 @@ export default function AdminProjectsPage() {
     }
   };
 
+  const handleUnpublish = async (projectId) => {
+    if (!confirm('Unpublish this project?')) return;
+    try {
+      await api.post('/projects/' + projectId + '/unpublish');
+      alert('✅ Unpublished!');
+      fetchProjects();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
   const columns = [
     {
       key: 'name',
@@ -59,6 +70,7 @@ export default function AdminProjectsPage() {
       label: 'Subdomain',
       render: (project) => (
         <a
+        
           href={'https://' + project.subdomain + '.buildown.design'}
           target="_blank"
           rel="noopener noreferrer"
@@ -99,8 +111,10 @@ export default function AdminProjectsPage() {
 
   const renderActions = (project) => (
     <>
-      {!project.published_at && (
+      {!project.published_at ? (
         <PublishIcon onClick={() => handlePublish(project.id)} />
+      ) : (
+        <UnpublishIcon onClick={() => handleUnpublish(project.id)} />
       )}
       <EditIcon href={'/admin/projects/' + project.id + '/edit'} />
       <DeleteIcon onClick={() => handleDelete(project.id)} />

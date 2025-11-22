@@ -1,20 +1,25 @@
 export function getSubdomain(host: string): string | null {
-  // Remove port if exists
   const hostname = host.split(':')[0];
-  
-  // Split by dots
   const parts = hostname.split('.');
   
-  // Check if it's a subdomain of buildown.design
-  // Format: subdomain.buildown.design
-  if (parts.length >= 3 && parts[parts.length - 2] === 'buildown' && parts[parts.length - 1] === 'design') {
-    return parts[0];
-  }
+  if (parts.length < 3) return null;
+  const subdomain = parts[0];
   
-  // For localhost testing: subdomain.localhost
-  if (parts.length >= 2 && parts[parts.length - 1] === 'localhost') {
-    return parts[0];
-  }
+  if (subdomain === 'account' || subdomain === 'www') return null;
   
-  return null;
+  return subdomain;
+}
+
+export async function getProject(subdomain: string): Promise<any> {
+  try {
+    const res = await fetch(
+      `http://backend:8000/api/v1/projects/by-subdomain/${subdomain}`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    return null;
+  }
 }

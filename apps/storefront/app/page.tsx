@@ -1,26 +1,8 @@
 import { headers } from 'next/headers';
-
-function getSubdomain(host: string): string | null {
-  // Remove port if present
-  const hostname = host.split(':')[0];
-  
-  // Extract subdomain from hostname
-  const parts = hostname.split('.');
-  
-  // buildown.design or localhost
-  if (parts.length < 3) return null;
-  
-  // subdomain.buildown.design
-  const subdomain = parts[0];
-  
-  // Don't treat 'account' as a project subdomain
-  if (subdomain === 'account') return null;
-  
-  return subdomain;
-}
+import { getSubdomain, getProject } from '../lib/subdomain';
+import NotAvailable from './components/NotAvailable';
 
 export default async function HomePage() {
-  // Get hostname from headers
   const headersList = headers();
   const host = headersList.get('host') || '';
   const subdomain = getSubdomain(host);
@@ -34,25 +16,44 @@ export default async function HomePage() {
     );
   }
   
-  // Fetch project data
-  let project = null;
-  try {
-    const res = await fetch(
-      `http://backend:8000/api/v1/projects/by-subdomain/${subdomain}`,
-      { cache: 'no-store' }
-    );
-    if (res.ok) {
-      project = await res.json();
-    }
-  } catch (error) {
-    console.error('Error fetching project:', error);
+  const project = await getProject(subdomain);
+  
+  if (!project) {
+    return <NotAvailable subdomain={subdomain} />;
   }
 
-  if (!project) {
+  // Check if project is not published
+  if (!project.published_at) {
     return (
-      <div style={{padding: '40px', textAlign: 'center'}}>
-        <h1>❌ Project Not Found</h1>
-        <p>Subdomain: {subdomain}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Project Not Published Yet
+            </h1>
+            <p className="text-gray-600 mb-6">
+              This project is currently in draft mode and not accessible to visitors.
+            </p>
+          </div>
+          
+          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-800">
+              <strong>Project Owner?</strong> Login to your admin panel to publish this project.
+            </p>
+          </div>
+
+          <a 
+            href="/manage"
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            🔐 Admin Login
+          </a>
+        </div>
       </div>
     );
   }
@@ -76,7 +77,7 @@ export default async function HomePage() {
       )}
       
       <div style={{marginTop: '30px'}}>
-        <a href="/manage/login" style={{
+        <a href="/manage" style={{
           padding: '10px 20px',
           background: '#4F46E5',
           color: 'white',

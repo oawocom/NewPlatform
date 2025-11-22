@@ -1,62 +1,31 @@
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { headers } from 'next/headers';
+import { getSubdomain, getProject } from '../../../lib/subdomain';
+import NotAvailable from '../../components/NotAvailable';
+import LoginForm from './LoginForm';
 
-export default function LoginPage() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      // TODO: Implement actual login API call
-      // For now, just store a dummy token
-      localStorage.setItem('project_token', 'dummy-token');
-      router.push('/manage/dashboard');
-    } catch (err) {
-      setError('Invalid password');
-    } finally {
-      setLoading(false);
-    }
-  };
+export default async function ManageLoginPage() {
+  const headersList = headers();
+  const host = headersList.get('host') || '';
+  const subdomain = getSubdomain(host);
+  
+  if (!subdomain) {
+    return <NotAvailable subdomain="unknown" />;
+  }
+  
+  const project = await getProject(subdomain);
+  
+  if (!project) {
+    return <NotAvailable subdomain={subdomain} />;
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Admin Login</h1>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-3 py-2 border rounded"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+          <p className="text-gray-600 mt-2">Admin Panel Login</p>
+        </div>
+        <LoginForm projectId={project.id} subdomain={subdomain} />
       </div>
     </div>
   );

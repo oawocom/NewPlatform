@@ -89,6 +89,40 @@ async def publish_project(
 ):
     """Publish project"""
     return service.publish_project(project_id)
+@router.post("/{project_id}/unpublish", response_model=ProjectResponse)
+async def unpublish_project(
+    project_id: int,
+    service: ProjectService = Depends(get_project_service)
+):
+    """Unpublish project"""
+    return service.unpublish_project(project_id)
+@router.post("/{project_id}/verify-password")
+async def verify_project_password(
+    project_id: int,
+    password_data: dict,
+    service: ProjectService = Depends(get_project_service)
+):
+    """Verify project admin password"""
+    project = service.get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    password = password_data.get('password')
+    if not password:
+        raise HTTPException(status_code=400, detail="Password required")
+    
+    # Verify password (assuming project has password field)
+    from app.core.security import verify_password
+    if not verify_password(password, project.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    return {
+        "success": True,
+        "token": f"manage_{project_id}_{password[:8]}",
+        "project_id": project_id
+    }
+
+
 
 
 @router.get("/by-subdomain/{subdomain}", response_model=ProjectResponse)

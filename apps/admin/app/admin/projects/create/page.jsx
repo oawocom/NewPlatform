@@ -125,9 +125,16 @@ export default function CreateProjectPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Modules ({formData.modules_enabled.length} selected)
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-3 bg-gray-50 dark:bg-gray-900/20">
               {MODULES.map((module) => (
-                <label key={module.id} className={`p-3 border rounded cursor-pointer ${formData.modules_enabled.includes(module.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600'}`}>
+                <label 
+                  key={module.id} 
+                  className={`p-3 border rounded cursor-pointer transition-colors ${
+                    formData.modules_enabled.includes(module.id) 
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-gray-900 dark:text-gray-100' 
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     className="mr-2"
@@ -141,10 +148,18 @@ export default function CreateProjectPage() {
           </div>
 
           <div className="flex space-x-3">
-            <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
               {loading ? 'Creating...' : '✨ Create'}
             </button>
-            <button type="button" onClick={() => router.push('/admin/projects')} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+            <button 
+              type="button" 
+              onClick={() => router.push('/admin/projects')} 
+              className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
               Cancel
             </button>
           </div>

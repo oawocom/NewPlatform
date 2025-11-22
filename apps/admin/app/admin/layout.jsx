@@ -61,7 +61,7 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-10">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-30">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center space-x-4">
             <img src={isDarkMode ? "/bod_logo_dark.png" : "/bod_logo.png"} alt="Buildown" className="h-8" />
@@ -103,7 +103,7 @@ export default function AdminLayout({ children }) {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-lg shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <div className="fixed right-0 mt-4 w-64 rounded-lg shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 z-50">
                   <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{user.full_name}</p>
                     <p className="text-xs mt-1 text-gray-600 dark:text-gray-400">{user.email}</p>
